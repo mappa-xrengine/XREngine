@@ -84,6 +84,7 @@
     "@types/puppeteer": "5.4.4",
     "@types/three": "0.130.1",
     "@types/yuka": "0.7.1",
+    "cross-env": "^7.0.3",
     "esbuild": "0.12.16",
     "eslint": "7.31.0",
     "rollup": "2.54.0",
