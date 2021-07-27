@@ -37,6 +37,7 @@ import {
 } from '@xrengine/engine/src/ecs/functions/EntityFunctions'
 import { registerComponent } from '@xrengine/engine/src/ecs/functions/ComponentFunctions'
 import { initializeEngine } from '@xrengine/engine/src/initializeEngine'
+import { EngineSystemPresets } from '@xrengine/engine/src/initializationOptions'
 
 class RenderSystem extends System {
   updateType = SystemUpdateType.Fixed
@@ -223,12 +224,12 @@ NavigationSystem.queries = {
 // This is a functional React component
 const Page = () => {
   useEffect(() => {
-    initializeEngine()
-  }, [])
-  useEffect(() => {
     ;(async function () {
-      // Register our systems to do stuff
+      initializeEngine({
+        type: EngineSystemPresets.EXAMPLE
+      })
 
+      // Register our systems to do stuff
       Engine.engineTimer = Timer(
         {
           networkUpdate: (delta: number, elapsedTime: number) => execute(delta, elapsedTime, SystemUpdateType.Network),
@@ -238,7 +239,6 @@ const Page = () => {
         Engine.physicsFrameRate,
         Engine.networkFramerate
       )
-
       // Set up rendering and basic scene for demo
       const canvas = document.createElement('canvas')
       document.body.appendChild(canvas) // adds the canvas to the body element

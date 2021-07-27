@@ -10,7 +10,8 @@ import { SystemConstructor } from './ecs/classes/System'
 export enum EngineSystemPresets {
   CLIENT,
   EDITOR,
-  SERVER
+  SERVER,
+  EXAMPLE
 }
 
 export type SystemInitializeType = {
