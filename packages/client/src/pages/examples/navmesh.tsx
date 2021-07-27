@@ -36,6 +36,7 @@ import {
   getMutableComponent
 } from '@xrengine/engine/src/ecs/functions/EntityFunctions'
 import { registerComponent } from '@xrengine/engine/src/ecs/functions/ComponentFunctions'
+import { initializeEngine } from '@xrengine/engine/src/initializeEngine'
 
 class RenderSystem extends System {
   updateType = SystemUpdateType.Fixed
@@ -221,6 +222,9 @@ NavigationSystem.queries = {
 
 // This is a functional React component
 const Page = () => {
+  useEffect(() => {
+    initializeEngine()
+  }, [])
   useEffect(() => {
     ;(async function () {
       // Register our systems to do stuff
