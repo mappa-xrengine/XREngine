@@ -5,6 +5,7 @@
 import { Vehicle } from 'yuka';
 
 class CustomVehicle extends Vehicle {
+  toRegion?: Polygon
 
 	constructor() {
 
@@ -23,7 +24,7 @@ class CustomVehicle extends Vehicle {
 		super.update( delta );
 
 		// this code is used to adjust the height of the entity according to its current region
-
+		// const currentRegion = this.navMesh.getRegionForPoint( this.position, 1 );
 		const currentRegion = this.navMesh.getRegionForPoint( this.position, 1 );
 
 		if ( currentRegion !== null ) {

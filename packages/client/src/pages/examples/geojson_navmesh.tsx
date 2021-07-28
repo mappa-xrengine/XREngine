@@ -38,6 +38,10 @@ import {
 import { registerComponent } from '@xrengine/engine/src/ecs/functions/ComponentFunctions'
 import { initializeEngine } from '@xrengine/engine/src/initializeEngine'
 import { EngineSystemPresets } from '@xrengine/engine/src/initializationOptions'
+import { NavMeshBuilder } from '../../../../engine/src/map/NavMeshBuilder'
+import { computeBoundingBox, subtract } from '../../../../engine/src/map/GeoJSONFns'
+import { fetchFeatures, llToScene } from '../../../../engine/src/map/MeshBuilder'
+import { Position, Polygon, MultiPolygon } from 'geojson'
 
 class RenderSystem extends System {
   updateType = SystemUpdateType.Fixed
@@ -57,7 +61,7 @@ const vehicleMaterial = new MeshBasicMaterial({ color: 0xff0000 })
 const vehicleGeometry = new ConeBufferGeometry(0.1, 0.5, 16)
 vehicleGeometry.rotateX(Math.PI * 0.5)
 vehicleGeometry.translate(0, 0.1, 0)
-const vehicleCount = 100
+const vehicleCount = 1
 
 const vehicleMesh = new InstancedMesh(vehicleGeometry, vehicleMaterial, vehicleCount)
 // setup spatial index
@@ -82,8 +86,41 @@ class NavigationComponent extends Component<NavigationComponent> {
 
 const meshUrl = '/models/navmesh/navmesh.glb'
 
-const loadNavMeshFromUrl = async (meshurl, navigationComponent) => {
-  const navigationMesh = await new NavMeshLoader().load(meshurl)
+function scaleAndTranslatePosition(position: Position, llCenter: Position) {
+  return [(position[0] - llCenter[0]) * 1000, (position[1] - llCenter[1]) * 1000]
+}
+
+function scaleAndTranslatePolygon(coords: Position[][], llCenter: Position) {
+  return [coords[0].map((position) => scaleAndTranslatePosition(position, llCenter))]
+}
+function scaleAndTranslate(geometry: Polygon | MultiPolygon, llCenter: [number, number]) {
+  switch (geometry.type) {
+    case 'MultiPolygon':
+      geometry.coordinates = geometry.coordinates.map((coords) => scaleAndTranslatePolygon(coords, llCenter))
+      break
+    case 'Polygon':
+      geometry.coordinates = scaleAndTranslatePolygon(geometry.coordinates, llCenter)
+      break
+  }
+
+  return geometry
+}
+
+const loadNavMeshFromMapBox = async (navigationComponent) => {
+  const builder = new NavMeshBuilder()
+  const center = [-84.388, 33.79]
+  const mapFeatures = await fetchFeatures(center)
+  const mapGeoms = mapFeatures
+    // There's some issue with Polygons at the moment
+    // .filter((feature) => ['Polygon', 'MultiPolygon'].indexOf(feature.geometry.type) >= 0)
+    .filter((feature) => feature.geometry.type === 'MultiPolygon')
+    .map((feature) => scaleAndTranslate(feature.geometry as Polygon | MultiPolygon, center as any))
+    .slice(0, 10) as (Polygon | MultiPolygon)[]
+
+  const groundGeom = computeBoundingBox(mapGeoms)
+  subtract(groundGeom, mapGeoms)
+  builder.addGeometry(groundGeom)
+  const navigationMesh = builder.build()
   loadNavMesh(navigationMesh, navigationComponent)
 }
 
@@ -100,14 +137,14 @@ const loadNavMesh = async (navigationMesh, navigationComponent) => {
   navigationMesh.updateSpatialIndex()
   navigationComponent.navigationMesh = navigationMesh
 
-  navigationComponent.spatialIndexHelper = createCellSpaceHelper(navigationMesh.spatialIndex)
-  Engine.scene.add(navigationComponent.spatialIndexHelper)
-  navigationComponent.spatialIndexHelper.visible = false
+  // navigationComponent.spatialIndexHelper = createCellSpaceHelper(navigationMesh.spatialIndex)
+  // Engine.scene.add(navigationComponent.spatialIndexHelper)
+  // navigationComponent.spatialIndexHelper.visible = false
 }
 
 async function startDemo(entity) {
   const navigationComponent = getMutableComponent(entity, NavigationComponent)
-  await loadNavMeshFromUrl(meshUrl, navigationComponent)
+  await loadNavMeshFromMapBox(navigationComponent)
 
   vehicleMesh.frustumCulled = false
   Engine.scene.add(vehicleMesh)
@@ -278,6 +315,15 @@ const Page = () => {
       await Promise.all(Engine.systems.map((system) => system.initialize()))
 
       Engine.engineTimer.start()
+
+      window.addEventListener('resize', onWindowResize)
+
+      function onWindowResize() {
+        Engine.camera.aspect = window.innerWidth / window.innerHeight
+        Engine.camera.updateProjectionMatrix()
+
+        Engine.renderer.setSize(window.innerWidth, window.innerHeight)
+      }
     })()
   }, [])
   // Some JSX to keep the compiler from complaining

@@ -26,6 +26,9 @@ export class NavMeshBuilder {
       const result = new YUKA.Polygon()
       const vec3s = this._toYukaVectors3(polygonCoords, elevation)
 
+      // TODO test
+      vec3s.reverse()
+
       result.fromContour(vec3s)
 
       return result
